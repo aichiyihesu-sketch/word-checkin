@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="背单词计数与复习打卡工具">
+  <meta name="theme-color" content="#f4f5f7">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="背单词打卡">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>背单词打卡</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+    :root {
+      --bg:#f4f5f7; --surface:#ffffff; --border:#e2e5ea;
+      --accent:#2563eb; --accent-dim:#dbeafe;
+      --text:#1a1d23; --muted:#8a92a0;
+      --green:#16a34a; --red:#dc2626; --yellow:#b45309; --orange:#c2410c;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:'Noto Sans SC',sans-serif;
+      min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px 100px;}
+
+    /* Header */
+    header{width:100%;max-width:600px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;}
+    .header-left{display:flex;align-items:center;gap:10px;}
+    header h1{font-size:13px;letter-spacing:4px;color:var(--muted);font-weight:400;text-transform:uppercase;}
+    .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 2s infinite;flex-shrink:0;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .btn-settings{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);
+      font-size:15px;width:32px;height:32px;cursor:pointer;transition:border-color .15s,color .15s;
+      display:flex;align-items:center;justify-content:center;}
+    .btn-settings:hover{border-color:var(--accent);color:var(--accent);}
+
+    /* Remind banner */
+    .remind-banner{width:100%;max-width:600px;background:rgba(194,65,12,.06);
+      border:1px solid rgba(194,65,12,.2);border-radius:14px;padding:14px 20px;margin-bottom:16px;display:none;}
+    .remind-banner.show{display:block;}
+    .remind-title{font-size:12px;color:var(--orange);font-weight:500;margin-bottom:8px;letter-spacing:1px;}
+    .remind-items{display:flex;flex-direction:column;gap:6px;}
+    .remind-item{font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px;}
+    .ri-dot{width:5px;height:5px;border-radius:50%;background:var(--orange);flex-shrink:0;}
+
+    /* Total band */
+    .total-band{width:100%;max-width:600px;background:var(--surface);border:1px solid var(--border);
+      border-radius:16px;padding:22px 28px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;
+      box-shadow:0 1px 4px rgba(0,0,0,.06);}
+    .total-label{font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;}
+    .total-sub{font-size:12px;color:var(--muted);margin-top:5px;}
+    .total-number{font-family:'DM Mono',monospace;font-size:52px;font-weight:500;color:var(--accent);
+      line-height:1;transition:transform .08s;}
+    .total-number.pop{transform:scale(1.08);}
+
+    /* Control card */
+    .control-card{width:100%;max-width:600px;background:var(--surface);border:1px solid var(--border);
+      border-radius:16px;padding:22px 28px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+    .control-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .section-label{font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;}
+    .timer-badge{display:flex;align-items:center;gap:6px;background:rgba(180,83,9,.08);
+      border:1px solid rgba(180,83,9,.25);border-radius:20px;padding:4px 12px;transition:background .3s,border-color .3s;}
+    .timer-badge.idle{background:rgba(138,146,160,.08);border-color:rgba(138,146,160,.25);}
+    .timer-dot{width:5px;height:5px;border-radius:50%;background:var(--yellow);animation:blink 1s infinite;}
+    .timer-badge.idle .timer-dot{background:var(--muted);animation:none;}
+    .timer-text{font-family:'DM Mono',monospace;font-size:12px;color:var(--yellow);transition:color .3s;}
+    .timer-badge.idle .timer-text{color:var(--muted);}
+    .current-count{font-family:'DM Mono',monospace;font-size:72px;font-weight:500;color:var(--text);
+      line-height:1;margin-bottom:20px;transition:transform .08s;}
+    .current-count.pop{transform:scale(1.06);}
+    .btn-row{display:flex;gap:10px;}
+    .btn-add{flex:1;height:52px;background:var(--accent);border:none;border-radius:12px;color:white;
+      font-size:24px;font-weight:700;cursor:pointer;transition:background .15s,transform .08s;}
+    .btn-add:hover{background:#9182ff;}
+    .btn-add:active{transform:scale(.97);}
+    .btn-icon{width:52px;height:52px;background:transparent;border:1px solid var(--border);border-radius:12px;
+      color:var(--muted);font-size:22px;cursor:pointer;transition:border-color .15s,color .15s;
+      display:flex;align-items:center;justify-content:center;}
+    .btn-icon:hover{border-color:var(--red);color:var(--red);}
+    .btn-commit{height:52px;padding:0 20px;background:transparent;border:1px solid var(--accent-dim);
+      border-radius:12px;color:var(--accent);font-size:13px;font-family:'Noto Sans SC',sans-serif;
+      cursor:pointer;transition:background .15s;white-space:nowrap;}
+    .btn-commit:hover{background:rgba(124,108,250,.12);}
+    .btn-commit:disabled{opacity:.3;cursor:default;}
+
+    /* Sessions card */
+    .sessions-card{width:100%;max-width:600px;background:var(--surface);border:1px solid var(--border);
+      border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+    .card-header{padding:16px 28px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .card-header-right{display:flex;gap:14px;align-items:center;}
+    .btn-text{font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;
+      font-family:'Noto Sans SC',sans-serif;transition:color .15s;}
+    .btn-text:hover{color:var(--accent);}
+    .btn-text.danger:hover{color:var(--red);}
+    .sessions-list{max-height:600px;overflow-y:auto;}
+    .sessions-list::-webkit-scrollbar{width:4px;}
+    .sessions-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+    /* Merge mode toolbar */
+    .merge-toolbar{display:none;padding:10px 28px;background:rgba(37,99,235,.06);
+      border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:10px;}
+    .merge-toolbar.show{display:flex;}
+    .merge-info{font-size:12px;color:var(--accent);}
+    .merge-btns{display:flex;gap:8px;}
+    .merge-btn{height:32px;padding:0 14px;border-radius:8px;font-size:12px;
+      font-family:'Noto Sans SC',sans-serif;cursor:pointer;transition:background .15s;}
+    .merge-btn.confirm{background:var(--accent);border:none;color:white;}
+    .merge-btn.confirm:hover{background:#9182ff;}
+    .merge-btn.confirm:disabled{opacity:.4;cursor:default;}
+    .merge-btn.cancel{background:transparent;border:1px solid var(--border);color:var(--muted);}
+    .merge-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+
+    /* Session entry */
+    .session-entry{border-bottom:1px solid var(--border);animation:slideIn .2s ease;}
+    .session-entry:last-child{border-bottom:none;}
+    @keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+    .session-entry.merge-selected{background:rgba(37,99,235,.04);}
+
+    .session-main{display:grid;grid-template-columns:20px 1fr auto auto;
+      align-items:start;padding:14px 28px 10px;gap:10px;}
+    .session-checkbox{display:none;width:16px;height:16px;accent-color:var(--accent);
+      cursor:pointer;margin-top:3px;flex-shrink:0;}
+    body.merge-mode .session-checkbox{display:block;}
+    body.merge-mode .session-index{display:none;}
+
+    .session-index{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);padding-top:2px;}
+    .session-info{min-width:0;}
+
+    /* Name row */
+    .session-name-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+    .session-name{font-size:13px;font-weight:500;color:var(--text);cursor:pointer;
+      border-bottom:1px dashed transparent;transition:border-color .15s;}
+    .session-name:hover{border-bottom-color:var(--muted);}
+    .session-name.placeholder{color:var(--muted);font-weight:400;font-size:12px;}
+    .session-name-input{background:transparent;border:none;border-bottom:1px solid var(--accent);
+      color:var(--text);font-size:13px;font-weight:500;font-family:'Noto Sans SC',sans-serif;
+      outline:none;width:100%;max-width:220px;}
+
+    /* Tags */
+    .session-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px;}
+    .session-tag-chip{font-size:10px;padding:2px 8px;border-radius:10px;cursor:pointer;
+      background:rgba(37,99,235,.08);color:var(--accent);border:1px solid transparent;
+      transition:background .15s;}
+    .session-tag-chip:hover{background:rgba(255,107,107,.15);color:var(--red);}
+    .session-tag-add{font-size:10px;padding:2px 8px;border-radius:10px;cursor:pointer;
+      background:transparent;border:1px dashed var(--border);color:var(--muted);transition:border-color .15s,color .15s;}
+    .session-tag-add:hover{border-color:var(--accent);color:var(--accent);}
+
+    .session-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:3px;}
+    .session-ts{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);}
+    .session-tag{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500;letter-spacing:.5px;}
+    .tag-auto{background:rgba(37,99,235,.08);color:var(--accent);}
+    .tag-manual{background:rgba(22,163,74,.08);color:var(--green);}
+    .tag-merged{background:rgba(180,83,9,.08);color:var(--yellow);}
+    .session-dur{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--yellow);opacity:.85;}
+
+    .session-val{font-family:'DM Mono',monospace;font-size:22px;color:var(--green);font-weight:500;white-space:nowrap;}
+    .session-del{background:none;border:none;color:var(--border);cursor:pointer;font-size:16px;
+      padding:4px;line-height:1;transition:color .15s;margin-top:2px;}
+    .session-del:hover{color:var(--red);}
+
+    /* Review boxes */
+    .review-boxes{display:flex;gap:8px;padding:0 28px 14px 58px;flex-wrap:wrap;}
+    .review-box{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:62px;}
+    .review-btn{width:100%;min-width:62px;padding:5px 8px;border-radius:8px;font-size:11px;
+      font-family:'Noto Sans SC',sans-serif;cursor:pointer;transition:all .15s;
+      border:1px solid var(--border);background:transparent;color:var(--muted);text-align:center;white-space:nowrap;}
+    .review-btn:hover:not(.done):not(.future){border-color:var(--accent);color:var(--accent);}
+    .review-btn.done{background:rgba(78,204,163,.15);border-color:rgba(78,204,163,.4);color:var(--green);cursor:default;}
+    .review-btn.today{border-color:var(--orange);color:var(--orange);animation:glow 1.5s infinite alternate;}
+    @keyframes glow{from{box-shadow:0 0 0 0 rgba(194,65,12,0)}to{box-shadow:0 0 6px 1px rgba(194,65,12,.2)}}
+    .review-btn.future{opacity:.35;cursor:default;}
+    .review-dur{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+
+    /* Modals */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;
+      align-items:center;justify-content:center;padding:16px;}
+    .modal-overlay.show{display:flex;}
+    .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;
+      width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.1);}
+    .modal-title{font-size:14px;font-weight:500;margin-bottom:6px;}
+    .modal-sub{font-size:12px;color:var(--muted);margin-bottom:22px;line-height:1.7;white-space:pre-line;}
+    .modal-timer{font-family:'DM Mono',monospace;font-size:40px;font-weight:500;color:var(--yellow);
+      text-align:center;margin-bottom:22px;}
+    .modal-btns{display:flex;gap:10px;}
+    .modal-btn{flex:1;height:44px;border-radius:10px;font-size:13px;
+      font-family:'Noto Sans SC',sans-serif;cursor:pointer;transition:background .15s;}
+    .modal-btn.primary{background:var(--accent);border:none;color:white;}
+    .modal-btn.primary:hover{background:#9182ff;}
+    .modal-btn.cancel{background:transparent;border:1px solid var(--border);color:var(--muted);}
+    .modal-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+
+    /* Form */
+    .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+    .form-label{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+    .form-input{background:var(--bg);border:1px solid var(--border);border-radius:10px;
+      padding:9px 14px;color:var(--text);font-size:14px;font-family:'Noto Sans SC',sans-serif;
+      outline:none;transition:border-color .15s;width:100%;}
+    .form-input:focus{border-color:var(--accent);}
+    .form-counter-row{display:flex;align-items:center;gap:8px;}
+    .form-count-val{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;color:var(--text);
+      min-width:48px;text-align:center;}
+    .form-btn-sm{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);
+      background:transparent;color:var(--muted);font-size:18px;cursor:pointer;
+      transition:border-color .15s,color .15s;display:flex;align-items:center;justify-content:center;}
+    .form-btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+    .form-btn-sm.wide{width:auto;padding:0 10px;font-size:12px;}
+
+    /* Tags input in modal */
+    .tags-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;
+      background:var(--bg);border:1px solid var(--border);border-radius:10px;min-height:42px;
+      cursor:text;transition:border-color .15s;}
+    .tags-input-wrap:focus-within{border-color:var(--accent);}
+    .tag-pill{display:inline-flex;align-items:center;gap:4px;background:rgba(37,99,235,.1);
+      color:var(--accent);font-size:11px;padding:2px 8px;border-radius:20px;}
+    .tag-pill-x{cursor:pointer;opacity:.7;font-size:13px;line-height:1;}
+    .tag-pill-x:hover{opacity:1;}
+    .tags-real-input{background:transparent;border:none;outline:none;color:var(--text);
+      font-size:13px;font-family:'Noto Sans SC',sans-serif;min-width:80px;flex:1;}
+
+    /* Settings */
+    .settings-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .settings-label{font-size:13px;color:var(--text);}
+    .settings-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+    .settings-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+      padding:6px 10px;color:var(--text);font-size:14px;font-family:'DM Mono',monospace;
+      outline:none;width:68px;text-align:center;transition:border-color .15s;}
+    .settings-input:focus{border-color:var(--accent);}
+
+    /* Footer */
+    .footer{width:100%;max-width:600px;margin-top:4px;display:flex;justify-content:space-between;align-items:center;}
+    .btn-footer{font-size:12px;background:none;border:none;cursor:pointer;
+      font-family:'Noto Sans SC',sans-serif;letter-spacing:.5px;transition:color .15s;}
+    .btn-footer.accent{color:var(--accent);}
+    .btn-footer.accent:hover{opacity:.7;}
+    .btn-footer.muted{color:var(--muted);}
+    .btn-footer.muted:hover{color:var(--red);}
+
+    .empty-state{padding:44px 28px;text-align:center;color:var(--muted);font-size:13px;line-height:2.2;}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="dot"></div>
+    <h1>背单词打卡</h1>
+  </div>
+  <button class="btn-settings" onclick="openSettings()" title="复习节点设置">⚙</button>
+</header>
+
+<!-- Today reminder -->
+<div class="remind-banner" id="remind-banner">
+  <div class="remind-title">📅 今日待复习</div>
+  <div class="remind-items" id="remind-items"></div>
+</div>
+
+<!-- Total -->
+<div class="total-band">
+  <div>
+    <div class="total-label">总计单词</div>
+    <div class="total-sub" id="session-count-label">共 0 次记录</div>
+  </div>
+  <div class="total-number" id="total">0</div>
+</div>
+
+<!-- Counter -->
+<div class="control-card">
+  <div class="control-top">
+    <span class="section-label">本次计数</span>
+    <div class="timer-badge idle" id="timer-badge">
+      <div class="timer-dot"></div>
+      <span class="timer-text" id="live-timer">未开始</span>
+    </div>
+  </div>
+  <div class="current-count" id="current">0</div>
+  <div class="btn-row">
+    <button class="btn-icon" onclick="minus()">−</button>
+    <button class="btn-add" onclick="add()">＋</button>
+    <button class="btn-commit" id="commit-btn" onclick="commit()" disabled>记录此次</button>
+  </div>
+</div>
+
+<!-- Sessions -->
+<div class="sessions-card">
+  <div class="card-header">
+    <span class="section-label">历史记录</span>
+    <div class="card-header-right">
+      <button class="btn-text" id="merge-toggle-btn" onclick="toggleMergeMode()">合并记录</button>
+      <button class="btn-text danger" onclick="clearAll()">清空</button>
+    </div>
+  </div>
+  <!-- Merge toolbar -->
+  <div class="merge-toolbar" id="merge-toolbar">
+    <span class="merge-info" id="merge-info">已选 0 条</span>
+    <div class="merge-btns">
+      <button class="merge-btn cancel" onclick="toggleMergeMode()">取消</button>
+      <button class="merge-btn confirm" id="merge-confirm-btn" onclick="doMerge()" disabled>合并</button>
+    </div>
+  </div>
+  <div class="sessions-list" id="sessions-list"></div>
+</div>
+
+<div class="footer">
+  <button class="btn-footer accent" onclick="openManual()">＋ 手动存档</button>
+  <button class="btn-footer muted" onclick="resetCurrent()">重置本次</button>
+</div>
+
+<!-- Review timer modal -->
+<div class="modal-overlay" id="review-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="review-modal-title">复习计时</div>
+    <div class="modal-sub" id="review-modal-sub"></div>
+    <div class="modal-timer" id="review-modal-timer">未开始</div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeReviewModal()">取消</button>
+      <button class="modal-btn primary" id="review-start-btn" onclick="toggleReviewTimer()">开始计时</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual entry modal -->
+<div class="modal-overlay" id="manual-modal">
+  <div class="modal-box" style="max-width:430px">
+    <div class="modal-title">手动存档</div>
+    <div class="modal-sub" style="margin-bottom:18px">补录一次背单词记录，同样附带四次复习打卡。</div>
+
+    <div class="form-row">
+      <div class="form-label">标题（可选）</div>
+      <input type="text" class="form-input" id="manual-name" placeholder="如：四级词汇 Unit 3">
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">标签（空格或回车分隔）</div>
+      <div class="tags-input-wrap" id="manual-tags-wrap" onclick="document.getElementById('manual-tag-input').focus()">
+        <input class="tags-real-input" id="manual-tag-input" placeholder="输入标签…" 
+          onkeydown="handleTagKey(event,'manual')">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">日期时间</div>
+      <input type="datetime-local" class="form-input" id="manual-date">
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">单词数量</div>
+      <div class="form-counter-row">
+        <button class="form-btn-sm" onclick="manualCountAdj(-10)">−10</button>
+        <button class="form-btn-sm" onclick="manualCountAdj(-1)">−</button>
+        <div class="form-count-val" id="manual-count-val">0</div>
+        <button class="form-btn-sm" onclick="manualCountAdj(1)">＋</button>
+        <button class="form-btn-sm wide" onclick="manualCountAdj(10)">+10</button>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">用时（分钟）</div>
+      <div class="form-counter-row">
+        <button class="form-btn-sm" onclick="manualDurAdj(-5)">−5</button>
+        <button class="form-btn-sm" onclick="manualDurAdj(-1)">−</button>
+        <div class="form-count-val" id="manual-dur-val">0</div>
+        <button class="form-btn-sm" onclick="manualDurAdj(1)">＋</button>
+        <button class="form-btn-sm wide" onclick="manualDurAdj(5)">+5</button>
+      </div>
+    </div>
+
+    <div class="modal-btns" style="margin-top:8px">
+      <button class="modal-btn cancel" onclick="closeManual()">取消</button>
+      <button class="modal-btn primary" onclick="saveManual()">保存存档</button>
+    </div>
+  </div>
+</div>
+
+<!-- Name/tags edit modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-title">编辑记录信息</div>
+    <div class="modal-sub" id="edit-modal-sub" style="margin-bottom:18px"></div>
+
+    <div class="form-row">
+      <div class="form-label">标题</div>
+      <input type="text" class="form-input" id="edit-name" placeholder="给这次记录起个名字…">
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">标签（空格或回车分隔）</div>
+      <div class="tags-input-wrap" id="edit-tags-wrap" onclick="document.getElementById('edit-tag-input').focus()">
+        <input class="tags-real-input" id="edit-tag-input" placeholder="输入标签…"
+          onkeydown="handleTagKey(event,'edit')">
+      </div>
+    </div>
+
+    <div class="modal-btns" style="margin-top:8px">
+      <button class="modal-btn cancel" onclick="closeEditModal()">取消</button>
+      <button class="modal-btn primary" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-title" style="margin-bottom:20px">复习节点设置</div>
+    <div class="settings-row">
+      <div><div class="settings-label">第 1 次复习</div><div class="settings-sub">记录后第 N 天</div></div>
+      <input class="settings-input" id="s-day1" type="number" min="1" value="1">
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">第 2 次复习</div><div class="settings-sub">记录后第 N 天</div></div>
+      <input class="settings-input" id="s-day2" type="number" min="1" value="3">
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">第 3 次复习</div><div class="settings-sub">记录后第 N 天</div></div>
+      <input class="settings-input" id="s-day3" type="number" min="1" value="5">
+    </div>
+    <div class="settings-row" style="margin-bottom:26px">
+      <div><div class="settings-label">第 4 次复习</div><div class="settings-sub">记录后第 N 天</div></div>
+      <input class="settings-input" id="s-day4" type="number" min="1" value="14">
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeSettings()">取消</button>
+      <button class="modal-btn primary" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══ State ══ */
+let current = 0, sessionStart = null, timerInterval = null;
+let sessions = JSON.parse(localStorage.getItem('wl_sessions_v4') || '[]');
+let settings = JSON.parse(localStorage.getItem('wl_settings_v1') || 'null') || { days:[1,3,5,14] };
+
+// Migrate old data without name/tags
+sessions = sessions.map(s => ({
+  name: '', tags: [], ...s,
+  reviews: (s.reviews || [null,null,null,null])
+}));
+
+// Review modal
+let reviewTarget = null, reviewStart = null, reviewInterval = null;
+
+// Manual modal
+let manualCount = 0, manualDur = 0;
+let manualTags = [], editTags = [];
+
+// Edit modal
+let editTargetIdx = null;
+
+// Merge mode
+let mergeMode = false;
+let mergeSelected = new Set();
+
+/* ══ Helpers ══ */
+const pad = n => String(n).padStart(2,'0');
+
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtDur(ms) {
+  const m = Math.floor(ms/60000);
+  if (m < 1) return '不足 1 分钟';
+  const h = Math.floor(m/60), rm = m%60;
+  return h > 0 ? `${h} 小时 ${rm} 分钟` : `${m} 分钟`;
+}
+
+function fmtDurMin(min) {
+  if (!min || min < 1) return '—';
+  const h = Math.floor(min/60), m = min%60;
+  return h > 0 ? `${h} 小时 ${m} 分钟` : `${m} 分钟`;
+}
+
+function dayStart(ts) { const d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+function todayStart() { return dayStart(Date.now()); }
+
+function saveAll() {
+  localStorage.setItem('wl_sessions_v4', JSON.stringify(sessions));
+  localStorage.setItem('wl_settings_v1', JSON.stringify(settings));
+}
+
+function popEl(el) {
+  el.classList.remove('pop'); void el.offsetWidth;
+  el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'),120);
+}
+
+/* ══ Main counter ══ */
+function startTimer() {
+  if (sessionStart !== null) return;
+  sessionStart = Date.now();
+  document.getElementById('timer-badge').classList.remove('idle');
+  document.getElementById('live-timer').textContent = '不足 1 分钟';
+  timerInterval = setInterval(()=>{
+    document.getElementById('live-timer').textContent = fmtDur(Date.now()-sessionStart);
+  }, 60000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval); timerInterval=null; sessionStart=null;
+  document.getElementById('timer-badge').classList.add('idle');
+  document.getElementById('live-timer').textContent = '未开始';
+}
+
+function add() { startTimer(); current++; popEl(document.getElementById('current')); updateUI(); }
+
+function minus() {
+  if (current > 0) { current--; if(current===0) stopTimer(); updateUI(); }
+}
+
+function commit() {
+  if (current === 0) return;
+  const endTs = Date.now();
+  const durMin = sessionStart ? Math.floor((endTs-sessionStart)/60000) : 0;
+  sessions.push({ ts:endTs, value:current, durMin, reviews:[null,null,null,null], manual:false, name:'', tags:[] });
+  saveAll();
+  popEl(document.getElementById('total'));
+  current=0; stopTimer();
+  updateUI(); checkReminders();
+}
+
+function resetCurrent() { current=0; stopTimer(); updateUI(); }
+
+function deleteSession(idx) { sessions.splice(idx,1); saveAll(); updateUI(); checkReminders(); }
+
+function clearAll() {
+  if (!sessions.length) return;
+  if (confirm('确定清空所有历史记录？')) { sessions=[]; saveAll(); updateUI(); checkReminders(); }
+}
+
+/* ══ Review boxes ══ */
+function openReview(sessionIdx, reviewIdx) {
+  const s = sessions[sessionIdx];
+  if (!s || s.reviews[reviewIdx] !== null) return;
+  reviewTarget={sessionIdx,reviewIdx}; reviewStart=null; clearInterval(reviewInterval);
+  const dDay = settings.days[reviewIdx];
+  const title = s.name ? `「${s.name}」第 ${reviewIdx+1} 次复习` : `第 ${reviewIdx+1} 次复习`;
+  document.getElementById('review-modal-title').textContent = title;
+  document.getElementById('review-modal-sub').textContent =
+    `第 ${dDay} 天复习节点\n记录日期：${fmtTime(s.ts)}\n本次背了 ${s.value} 个单词`;
+  document.getElementById('review-modal-timer').textContent = '未开始';
+  document.getElementById('review-start-btn').textContent = '开始计时';
+  document.getElementById('review-modal').classList.add('show');
+}
+
+function toggleReviewTimer() {
+  if (!reviewStart) {
+    reviewStart = Date.now();
+    document.getElementById('review-start-btn').textContent = '结束并保存';
+    reviewInterval = setInterval(()=>{
+      document.getElementById('review-modal-timer').textContent = fmtDur(Date.now()-reviewStart);
+    }, 60000);
+    document.getElementById('review-modal-timer').textContent = '不足 1 分钟';
+  } else {
+    const durMin = Math.max(0, Math.floor((Date.now()-reviewStart)/60000));
+    clearInterval(reviewInterval);
+    const {sessionIdx,reviewIdx} = reviewTarget;
+    sessions[sessionIdx].reviews[reviewIdx] = {ts:Date.now(), durMin};
+    saveAll(); closeReviewModal(); updateUI();
+  }
+}
+
+function closeReviewModal() {
+  clearInterval(reviewInterval);
+  document.getElementById('review-modal').classList.remove('show');
+  reviewTarget=reviewStart=null;
+}
+
+/* ══ Reminders ══ */
+function checkReminders() {
+  const banner = document.getElementById('remind-banner');
+  const itemsEl = document.getElementById('remind-items');
+  const dues = [];
+  sessions.forEach((s,si) => {
+    settings.days.forEach((d,ri) => {
+      if (s.reviews[ri] !== null) return;
+      if (dayStart(dayStart(s.ts)+d*86400000) === todayStart()) dues.push({si,ri,s,d});
+    });
+  });
+  if (!dues.length) { banner.classList.remove('show'); return; }
+  banner.classList.add('show');
+  itemsEl.innerHTML = dues.map(({si,ri,s,d}) => {
+    const nameLabel = s.name ? `「${s.name}」` : `记录 #${si+1}`;
+    return `<div class="remind-item"><div class="ri-dot"></div>
+      <span>${nameLabel}（${s.value} 词）— 第 ${ri+1} 次复习（第 ${d} 天）</span></div>`;
+  }).join('');
+}
+
+/* ══ Tags helpers ══ */
+function renderTagsInWrap(wrapId, inputId, tagsArr) {
+  const wrap = document.getElementById(wrapId);
+  const input = document.getElementById(inputId);
+  // Remove existing pills
+  wrap.querySelectorAll('.tag-pill').forEach(el=>el.remove());
+  tagsArr.forEach((t,i) => {
+    const pill = document.createElement('span');
+    pill.className = 'tag-pill';
+    pill.innerHTML = `${t}<span class="tag-pill-x" onclick="removeTag('${wrapId}','${inputId}',${i})">×</span>`;
+    wrap.insertBefore(pill, input);
+  });
+}
+
+function removeTag(wrapId, inputId, i) {
+  if (wrapId === 'manual-tags-wrap') { manualTags.splice(i,1); renderTagsInWrap(wrapId,inputId,manualTags); }
+  else { editTags.splice(i,1); renderTagsInWrap(wrapId,inputId,editTags); }
+}
+
+function addTag(context, val) {
+  const v = val.trim();
+  if (!v) return;
+  if (context==='manual') { if (!manualTags.includes(v)) manualTags.push(v); renderTagsInWrap('manual-tags-wrap','manual-tag-input',manualTags); }
+  else { if (!editTags.includes(v)) editTags.push(v); renderTagsInWrap('edit-tags-wrap','edit-tag-input',editTags); }
+}
+
+function handleTagKey(e, context) {
+  const input = e.target;
+  if (e.key==='Enter'||e.key===' ') {
+    e.preventDefault();
+    addTag(context, input.value);
+    input.value = '';
+  } else if (e.key==='Backspace' && input.value==='' ) {
+    const arr = context==='manual' ? manualTags : editTags;
+    if (arr.length) {
+      arr.pop();
+      const wrapId = context==='manual'?'manual-tags-wrap':'edit-tags-wrap';
+      const inpId  = context==='manual'?'manual-tag-input':'edit-tag-input';
+      renderTagsInWrap(wrapId,inpId,arr);
+    }
+  }
+}
+
+/* ══ Manual entry ══ */
+function openManual() {
+  manualCount=0; manualDur=0; manualTags=[];
+  document.getElementById('manual-count-val').textContent='0';
+  document.getElementById('manual-dur-val').textContent='0';
+  document.getElementById('manual-name').value='';
+  document.getElementById('manual-tag-input').value='';
+  renderTagsInWrap('manual-tags-wrap','manual-tag-input',[]);
+  const now = new Date();
+  now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById('manual-date').value = now.toISOString().slice(0,16);
+  document.getElementById('manual-modal').classList.add('show');
+}
+
+function closeManual() { document.getElementById('manual-modal').classList.remove('show'); }
+
+function manualCountAdj(d) { manualCount=Math.max(0,manualCount+d); document.getElementById('manual-count-val').textContent=manualCount; }
+function manualDurAdj(d)   { manualDur=Math.max(0,manualDur+d);     document.getElementById('manual-dur-val').textContent=manualDur; }
+
+function saveManual() {
+  // flush pending tag input
+  const tagIn = document.getElementById('manual-tag-input');
+  if (tagIn.value.trim()) { addTag('manual',tagIn.value); tagIn.value=''; }
+  if (manualCount === 0) { alert('单词数量不能为 0'); return; }
+  const dateVal = document.getElementById('manual-date').value;
+  const ts = dateVal ? new Date(dateVal).getTime() : Date.now();
+  const name = document.getElementById('manual-name').value.trim();
+  sessions.push({ ts, value:manualCount, durMin:manualDur, reviews:[null,null,null,null], manual:true, name, tags:[...manualTags] });
+  sessions.sort((a,b)=>b.ts-a.ts);
+  saveAll(); closeManual(); updateUI(); checkReminders();
+}
+
+/* ══ Edit name/tags modal ══ */
+function openEditModal(idx) {
+  editTargetIdx = idx;
+  const s = sessions[idx];
+  editTags = [...(s.tags||[])];
+  document.getElementById('edit-name').value = s.name||'';
+  document.getElementById('edit-tag-input').value='';
+  renderTagsInWrap('edit-tags-wrap','edit-tag-input',editTags);
+  document.getElementById('edit-modal-sub').textContent = `${fmtTime(s.ts)}  ·  ${s.value} 个单词`;
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function closeEditModal() { document.getElementById('edit-modal').classList.remove('show'); editTargetIdx=null; }
+
+function saveEdit() {
+  const tagIn = document.getElementById('edit-tag-input');
+  if (tagIn.value.trim()) { addTag('edit',tagIn.value); tagIn.value=''; }
+  if (editTargetIdx===null) return;
+  sessions[editTargetIdx].name = document.getElementById('edit-name').value.trim();
+  sessions[editTargetIdx].tags = [...editTags];
+  saveAll(); closeEditModal(); updateUI(); checkReminders();
+}
+
+/* ══ Merge mode ══ */
+function toggleMergeMode() {
+  mergeMode = !mergeMode;
+  mergeSelected.clear();
+  document.body.classList.toggle('merge-mode', mergeMode);
+  document.getElementById('merge-toolbar').classList.toggle('show', mergeMode);
+  document.getElementById('merge-toggle-btn').textContent = mergeMode ? '退出合并' : '合并记录';
+  document.getElementById('merge-toggle-btn').style.color = mergeMode ? 'var(--orange)' : '';
+  updateUI();
+}
+
+function toggleMergeSelect(idx) {
+  if (!mergeMode) return;
+  if (mergeSelected.has(idx)) mergeSelected.delete(idx);
+  else mergeSelected.add(idx);
+  const n = mergeSelected.size;
+  document.getElementById('merge-info').textContent = `已选 ${n} 条`;
+  document.getElementById('merge-confirm-btn').disabled = n < 2;
+  updateUI();
+}
+
+function doMerge() {
+  if (mergeSelected.size < 2) return;
+  const idxs = [...mergeSelected].sort((a,b)=>a-b);
+  const picked = idxs.map(i=>sessions[i]);
+  // Use earliest ts, sum values, sum durMin
+  const merged = {
+    ts: Math.min(...picked.map(s=>s.ts)),
+    value: picked.reduce((a,s)=>a+s.value,0),
+    durMin: picked.reduce((a,s)=>a+(s.durMin||0),0),
+    reviews: [null,null,null,null],
+    manual: false,
+    merged: true,
+    name: picked.map(s=>s.name).filter(Boolean).join(' + ') || '',
+    tags: [...new Set(picked.flatMap(s=>s.tags||[]))]
+  };
+  // Remove in reverse order
+  idxs.reverse().forEach(i=>sessions.splice(i,1));
+  sessions.push(merged);
+  sessions.sort((a,b)=>b.ts-a.ts);
+  saveAll();
+  toggleMergeMode();
+  updateUI(); checkReminders();
+}
+
+/* ══ Settings ══ */
+function openSettings() {
+  settings.days.forEach((d,i)=>{ document.getElementById(`s-day${i+1}`).value=d; });
+  document.getElementById('settings-modal').classList.add('show');
+}
+function closeSettings() { document.getElementById('settings-modal').classList.remove('show'); }
+function saveSettings() {
+  settings.days = [1,2,3,4].map(i=>parseInt(document.getElementById(`s-day${i}`).value)||settings.days[i-1]);
+  saveAll(); closeSettings(); updateUI(); checkReminders();
+}
+
+/* ══ Render ══ */
+const clockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+function reviewBoxHTML(s, si) {
+  return settings.days.map((d,ri) => {
+    const rev = s.reviews[ri];
+    const dueDay = dayStart(dayStart(s.ts)+d*86400000);
+    const today  = todayStart();
+    const isDone = rev !== null;
+    let cls = 'review-btn', onclick='', label=`第${d}天`;
+    if (isDone) { cls+=' done'; label=`✓ 第${d}天`; }
+    else if (dueDay===today) { cls+=' today'; onclick=`onclick="openReview(${si},${ri})"`; }
+    else if (dueDay>today)   { cls+=' future'; }
+    else                     { onclick=`onclick="openReview(${si},${ri})"`; }
+    const durLabel = isDone&&rev.durMin>0 ? fmtDurMin(rev.durMin) : '';
+    return `<div class="review-box">
+      <button class="${cls}" ${onclick}>${label}</button>
+      ${durLabel?`<div class="review-dur">${durLabel}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function updateUI() {
+  document.getElementById('current').textContent = current;
+  document.getElementById('commit-btn').disabled = current===0;
+  const total = sessions.reduce((s,r)=>s+r.value,0);
+  document.getElementById('total').textContent = total;
+  document.getElementById('session-count-label').textContent = `共 ${sessions.length} 次记录`;
+
+  const list = document.getElementById('sessions-list');
+  if (!sessions.length) {
+    list.innerHTML='<div class="empty-state">还没有记录<br>按 ＋ 开始计数再「记录此次」<br>或点下方「手动存档」</div>';
+    return;
+  }
+
+  const indexed = sessions.map((s,i)=>({s,i})).sort((a,b)=>b.s.ts-a.s.ts);
+
+  list.innerHTML = indexed.map(({s,i}) => {
+    const durLabel = s.durMin>0?fmtDurMin(s.durMin):'—';
+    const typeTag = s.merged
+      ? `<span class="session-tag tag-merged">合并</span>`
+      : s.manual
+        ? `<span class="session-tag tag-manual">手动</span>`
+        : `<span class="session-tag tag-auto">自动</span>`;
+
+    const hasDueToday = settings.days.some((d,ri)=>
+      !s.reviews[ri] && dayStart(dayStart(s.ts)+d*86400000)===todayStart()
+    );
+
+    const nameDisplay = s.name
+      ? `<span class="session-name" onclick="openEditModal(${i})" title="点击编辑">${s.name}</span>`
+      : `<span class="session-name placeholder" onclick="openEditModal(${i})" title="点击添加标题">添加标题…</span>`;
+
+    const tagsHTML = (s.tags&&s.tags.length>0)
+      ? s.tags.map(t=>`<span class="session-tag-chip" onclick="openEditModal(${i})" title="点击编辑标签">${t}</span>`).join('')
+      : '';
+
+    const isSelected = mergeSelected.has(i);
+
+    return `
+      <div class="session-entry${isSelected?' merge-selected':''}" id="entry-${i}">
+        <div class="session-main">
+          <input type="checkbox" class="session-checkbox" ${isSelected?'checked':''}
+            onchange="toggleMergeSelect(${i})">
+          <span class="session-index">${pad(i+1)}</span>
+          <div class="session-info">
+            <div class="session-name-row">${nameDisplay}</div>
+            ${tagsHTML?`<div class="session-tags">${tagsHTML}<span class="session-tag-add" onclick="openEditModal(${i})">＋标签</span></div>`:''}
+            <div class="session-meta">
+              <span class="session-ts">${fmtTime(s.ts)}</span>
+              ${typeTag}
+              ${hasDueToday?'<span class="session-tag" style="background:rgba(194,65,12,.08);color:var(--orange)">今日复习</span>':''}
+            </div>
+            <div class="session-dur">${clockSvg}&nbsp;用时 ${durLabel}</div>
+          </div>
+          <span class="session-val">+${s.value}</span>
+          <button class="session-del" onclick="deleteSession(${i})" title="删除">×</button>
+        </div>
+        <div class="review-boxes">${reviewBoxHTML(s,i)}</div>
+      </div>`;
+  }).join('');
+}
+
+// Close modals on overlay click
+['review-modal','manual-modal','edit-modal','settings-modal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){
+    if(e.target!==this) return;
+    if(id==='review-modal') closeReviewModal();
+    else if(id==='manual-modal') closeManual();
+    else if(id==='edit-modal') closeEditModal();
+    else closeSettings();
+  });
+});
+
+updateUI();
+checkReminders();
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
